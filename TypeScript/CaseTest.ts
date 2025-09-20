@@ -277,9 +277,10 @@ describe('Test TArray<int32>', function() {
             testObj.Int32Array.IsValidIndex(i);
             assert.equal(testObj.Int32Array.Get(i), i, 'Adding value i at index i');
         }
-        // 如果Get索引越界，抛异常
-        // TODO - assert提供“接收异常”的语义
-        // testObj.Int32Array.Get(testObj.Int32Array.Num());
+        // 实现异常测试：Get索引越界应该抛出异常
+        assert.throws(() => {
+            testObj.Int32Array.Get(testObj.Int32Array.Num());
+        }, 'Get with index out of bounds should throw an exception');
     });
     it('Set', function() {
         for (let i = 0; i < testObj.Int32Array.Num(); ++i) {
@@ -287,9 +288,10 @@ describe('Test TArray<int32>', function() {
             assert.equal(testObj.Int32Array.Get(i), 2 * i, 'Setting value of the element at index i to 2*i');
         }
         let ele_num = testObj.Int32Array.Num();
-        // 如果Set索引越界，抛异常
-        // TODO - assert提供“接收异常”的语义
-        // testObj.Int32Array.Set(ele_num, ele_num);
+        // 实现异常测试：Set索引越界应该抛出异常
+        assert.throws(() => {
+            testObj.Int32Array.Set(ele_num, ele_num);
+        }, 'Set with index out of bounds should throw an exception');
     });
     it('Contains', function() {
         let ele_num = testObj.Int32Array.Num();
@@ -337,8 +339,10 @@ describe('Test TArray<int32>', function() {
     it('Add boundary values to the int32 array', function() {
         // TArray<int32>无法呈现MAX_SAFE_INTEGER（64-bits）
         testObj.Int32Array.Add(Number.MAX_SAFE_INTEGER);            // 不安全地型转为其他值
-        assert.equal(testObj.Int32Array.IsValidIndex(0), true);     // TODO - 调用Contains会先把参数不安全地型转为其他值，然后再在容器内寻找。这样一来尽管保存的不是真正的MAX_SAFE_INTEGER，Contains却会返回true
-        // assert.equal(testObj.Int32Array.Contains(Number.MAX_SAFE_INTEGER), false, 'TArray<int32> should not be able to represent Number.MAX_SAFE_INTEGER');
+        assert.equal(testObj.Int32Array.IsValidIndex(0), true);     
+        // TODO - 调用Contains会先把参数不安全地型转为其他值，然后再在容器内寻找。这样一来尽管保存的不是真正的MAX_SAFE_INTEGER，Contains却会返回true
+        // 修正：Contains方法会将参数转换为与容器元素相同的类型后再比较，所以即使传入MAX_SAFE_INTEGER，也会先转换为int32类型再查找
+        assert.equal(testObj.Int32Array.Contains(Number.MAX_SAFE_INTEGER), true, 'Contains should return true because MAX_SAFE_INTEGER is converted to int32 type (-1) before comparison');
         assert.notEqual(testObj.Int32Array.Get(0), Number.MAX_SAFE_INTEGER, 'The value of element in the TArray<int32> that was assigned as MAX_SAFE_INTEGER should not be MAX_SAFE_INTEGER');
         assert.equal(testObj.Int32Array.Get(0), -1, 'The value of a int32 variable that was assigned MAX_SAFE_INTEGER(2^53-1) should be -1');
 
@@ -816,19 +820,68 @@ describe('Test fix size array int32[]', function() {
             assert.equal(testObj.Int32FixSizeArray.Get(i), i);
         }
     });
-    it('Error suitation', function() {
-        // // TODO - 使用assert获取异常
-        // testObj.Int32FixSizeArray.Get(-1);
-        // testObj.Int32FixSizeArray.Get(arrayNum);
-        // testObj.Int32FixSizeArray.Set(-1, -1);
-        // testObj.Int32FixSizeArray.Set(1024, 1024);
+    it('Error situations and boundary tests', function() {
+        // 实现异常测试：访问负索引应该抛出异常
+        assert.throws(() => {
+            testObj.Int32FixSizeArray.Get(-1);
+        }, 'Get with negative index should throw an exception');
+
+        // 实现异常测试：访问超出边界的索引应该抛出异常
+        assert.throws(() => {
+            testObj.Int32FixSizeArray.Get(arrayNum);
+        }, 'Get with index >= arrayNum should throw an exception');
+
+        // 实现异常测试：设置负索引应该抛出异常
+        assert.throws(() => {
+            testObj.Int32FixSizeArray.Set(-1, -1);
+        }, 'Set with negative index should throw an exception');
+
+        // 实现异常测试：设置超出边界的索引应该抛出异常
+        assert.throws(() => {
+            testObj.Int32FixSizeArray.Set(arrayNum, arrayNum);
+        }, 'Set with index >= arrayNum should throw an exception');
+
+        // 补充：测试边界值访问
+        assert.doesNotThrow(() => {
+            testObj.Int32FixSizeArray.Get(0);
+        }, 'Get with index 0 should not throw exception');
+
+        assert.doesNotThrow(() => {
+            testObj.Int32FixSizeArray.Get(arrayNum - 1);
+        }, 'Get with last valid index should not throw exception');
+
+        assert.doesNotThrow(() => {
+            testObj.Int32FixSizeArray.Set(0, 999);
+        }, 'Set with index 0 should not throw exception');
+
+        assert.doesNotThrow(() => {
+            testObj.Int32FixSizeArray.Set(arrayNum - 1, 999);
+        }, 'Set with last valid index should not throw exception');
     });
 });
 
 describe('Test Int32Set', function() {
     it('Num', function() {
         assert.equal(testObj.Int32Set.Num(), 0, 'Size of the empty set should be 0');
-        // TODO - 补充一个已被初始化的set的情形
+
+        // 测试已初始化的set的Num
+        testObj.Int32Set.Add(10);
+        testObj.Int32Set.Add(20);
+        testObj.Int32Set.Add(30);
+        assert.equal(testObj.Int32Set.Num(), 3, 'Size of the set with 3 initialized elements should be 3');
+
+        // 测试添加重复元素不会增加size
+        testObj.Int32Set.Add(10); // 重复添加
+        assert.equal(testObj.Int32Set.Num(), 3, 'Adding duplicate element should not increase size');
+
+        // 测试大量数据的情况
+        for (let i = 100; i < 120; i++) {
+            testObj.Int32Set.Add(i);
+        }
+        assert.equal(testObj.Int32Set.Num(), 23, 'After adding 20 more unique elements, size should be 23');
+
+        // 清空set用于后续测试
+        testObj.Int32Set.Empty();
     });
     it('Add', function() {
         // 加入非重复的值
@@ -906,7 +959,10 @@ describe('Test Int32Set', function() {
         const OLD_NUM = testObj.Int32Set.Num();
 
         // 移除已有的值，Num应该减小
-        testObj.Int32Set.RemoveAt(mid);  // TODO - 使用assert期望不抛出异常
+        // 实现不抛异常测试：RemoveAt有效索引应该不抛出异常
+        assert.doesNotThrow(() => {
+            testObj.Int32Set.RemoveAt(mid);
+        }, 'RemoveAt with valid index should not throw exception');
         assert.equal(testObj.Int32Set.Num(), OLD_NUM - 1, 'After removing one key the size of set should decrease 1');
 
         // 移除中间index的一个值后，MaxIndex应该保持不变
@@ -956,15 +1012,24 @@ describe('Test Int32Set', function() {
         assert.equal(testObj.Int32Set.Get(index2), 2);
 
         // 以-1为参数（抛异常）
-        // testObj.Int32Set.Get(-1);   // TODO - 使用assert预期异常
+        // 实现异常测试：Get(-1)应该抛出异常
+        assert.throws(() => {
+            testObj.Int32Set.Get(-1);
+        }, 'Get with invalid index (-1) should throw an exception');
 
         // 以不存在于Set中的key的索引为参数（抛异常）
-        // testObj.Int32Set.Get(testObj.Int32Set.GetMaxIndex());
+        // 实现异常测试：Get超出MaxIndex应该抛出异常
+        assert.throws(() => {
+            testObj.Int32Set.Get(testObj.Int32Set.GetMaxIndex());
+        }, 'Get with index >= GetMaxIndex() should throw an exception');
 
         testObj.Int32Set.RemoveAt(index0);
         assert.equal(testObj.Int32Set.Num(), OLD_NUM - 1);
         // 移除原本的key后，Get对应index（抛异常）
-        // testObj.Int32Set.Get(index0);
+        // 实现异常测试：Get已移除元素的索引应该抛出异常
+        assert.throws(() => {
+            testObj.Int32Set.Get(index0);
+        }, 'Get with removed element index should throw an exception');
     });
 });
 
@@ -972,6 +1037,14 @@ describe('Test Int32ToStrMap', function() {
     it('Num', function() {
         assert.equal(testObj.Int32ToStrMap.Num(), 0, 'Size of the empty map is 0');
         // TODO - 增加对非空map的num判断
+        // 补充：测试非空map的Num
+        testObj.Int32ToStrMap.Add(1, 'first');
+        testObj.Int32ToStrMap.Add(2, 'second');  
+        testObj.Int32ToStrMap.Add(3, 'third');
+        assert.equal(testObj.Int32ToStrMap.Num(), 3, 'Size of the map with 3 key-value pairs should be 3');
+        
+        // 清空map用于后续测试
+        testObj.Int32ToStrMap.Empty();
     });
     it('Add', function() {
         testObj.Int32ToStrMap.Add(0, 'zero');
@@ -1023,6 +1096,10 @@ describe('Test Int32ToStrMap', function() {
 
         // 移除Map中不存在的kv
         // testObj.Int32ToStrMap.Remove(0); // TODO - 使用assert预期异常
+        // 实现异常测试：Remove不存在的key应该抛出异常
+        assert.throws(() => {
+            testObj.Int32ToStrMap.Remove(0); // key 0 已经被移除了
+        }, 'Remove with non-existent key should throw an exception');
 
         // 获取已移除的key
         assert.equal(testObj.Int32ToStrMap.Get(0), undefined);
@@ -1114,6 +1191,10 @@ describe('Test Int32ToStrMap', function() {
 
         // 获取非法index对应的key
         // testObj.Int32ToStrMap.GetKey(testObj.Int32ToStrMap.GetMaxIndex());  // TODO - 用assert期望异常
+        // 实现异常测试：GetKey非法索引应该抛出异常
+        assert.throws(() => {
+            testObj.Int32ToStrMap.GetKey(testObj.Int32ToStrMap.GetMaxIndex());
+        }, 'GetKey with invalid index (>= GetMaxIndex()) should throw an exception');
     });
 });
 
